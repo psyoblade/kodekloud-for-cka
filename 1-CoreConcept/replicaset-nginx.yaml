@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: ReplicaSet
 metadata:
-  name: replicaset-2
+  name: replicaset-nginx
 spec:
   replicas: 2
   selector:
@@ -13,5 +13,5 @@ spec:
         tier: frontend
     spec:
       containers:
-      - name: nginx
+      - name: nginx-container
         image: nginx

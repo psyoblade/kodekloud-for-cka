@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: ReplicaSet
 metadata:
-  name: replicaset-3
+  name: replicaset-busybox
 spec:
   replicas: 2
   selector:
@@ -13,8 +13,7 @@ spec:
         tier: frontend
     spec:
       containers:
-      - name: busybox
+      - name: busybox-container
         image: busybox
         command: ["/bin/sh"]
         args: ["-c", "echo Hello Kubernetes; sleep 3600"]
-

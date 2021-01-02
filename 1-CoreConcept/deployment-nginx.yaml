@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: deployment-3
+  name: deployment-nginx
   labels:
     app: myapp
     type: frontend
@@ -21,4 +21,3 @@ spec:
       containers:
         - name: nginx-container
           image: nginx
-    
