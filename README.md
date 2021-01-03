@@ -239,6 +239,7 @@ replicaset.apps/deployment-busybox-7c8b5b5688   2         2         0       4s
 
 ### 2-5. Namespace 및 DNS 접근
 * [DNS for Services and Pods](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/)
+
 | Kind | DNS Rule | Example |
 |---|---|---|
 | Service | 서비스명.네임스페이스.svc.cluster.local | nginx-service.default.svc.cluster.local |
