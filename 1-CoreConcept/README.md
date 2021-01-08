@@ -213,8 +213,8 @@ status: {}
 ```
 
 
-### 1-5. Practice Tests - Services
-> 서비스는 노드에 할당된 물리적인 IP 와 PORT 정보를 이용하여, 파드에 할당된 IP 와 컨테이너에 할당된 PORT 정보에 대한 맵핑을 통한 연동을 시켜주는 서비스입니다. 즉 여기서 기인한 이름이 "NodePort Service" 입니다.
+### 1-5. Practice Tests - NodePort Services
+> 서비스는 노드에 할당된 물리적인 IP 와 PORT 정보를 이용하여, 파드에 할당된 IP 와 컨테이너에 할당된 PORT 정보에 대한 맵핑을 통한 연동을 시켜주는 서비스입니다. 즉 여기서 기인한 이름이 "NodePort Service" 입니다. 즉, 해당하는 노드의 물리적인 IP 정보를 알고 있다고 가정할 때에 사용할 수 있습니다
 * 서비스는 파드를 향한 요청에 대해 노드의 포트를 연결해 주는 서비스입니다
   - Service listens to Port on the Node that Requests on the Pods
 
@@ -225,39 +225,101 @@ status: {}
 | LoadBalancer | 부하분산 및 서비스 격리를 제공하는 L7과 같은 기능 |
 
 * NodePort
-  - Node(192.168.0.1):30008 -> Service(10.1.1.2):80 -> Pod(10.1.1.10):80
+  - Node(192.168.0.1):30001 -> Service(10.1.1.2):80 -> Pod(10.1.1.10):80
 ![kkc-1](images/kkc-1.png)
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: pod-redis
+  name: pod-nginx
   labels:
-    app: redis-app
-    type: backend
+    app: nginx-app
 spec:
   containers:
-    - name: redis-container
-      image: redis
+    - name: nginx-container
+      image: nginx
       ports:
-        - containerPort: 6379
+        - containerPort: 80
 ```
 ![kkc-2](images/kkc-2.png)
 ```yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis-service
+  name: service-nginx
 spec:
   type: NodePort
   ports:
-  - targetPort: 6379
-    port: 6379
-    nodePort: 30008
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30001
   selector:
-    app: redis-app
-    type: backend
+    app: nginx-app
+```
+* minikube 에서 서비스를 기동한다면 Node 의 IP 로 접근할 수 없기 때문에 아래와 같이 터널링이 필요합니다
+  - 물리적인 노드가 있다면 NodeIP:30001 로 접속할 수 있지만, minikube 는 별도의 파드에서 기동되기 때문에 localhost 에 임의의 포트에 다시 맵핑됩니다
+```bash
+bash> minikube service list
+
+|----------------------|---------------------------|--------------|-----|
+|      NAMESPACE       |           NAME            | TARGET PORT  | URL |
+|----------------------|---------------------------|--------------|-----|
+| default              | kubernetes                | No node port |     |
+| default              | service-nginx             |           80 |     |
+| kube-system          | kube-dns                  | No node port |     |
+| kube-system          | metrics-server            | No node port |     |
+| kubernetes-dashboard | dashboard-metrics-scraper | No node port |     |
+| kubernetes-dashboard | kubernetes-dashboard      | No node port |     |
+|----------------------|---------------------------|--------------|-----|
+
+bash> minikube service service-nginx
+|-----------|---------------|-------------|-------------------------|
+| NAMESPACE |     NAME      | TARGET PORT |           URL           |
+|-----------|---------------|-------------|-------------------------|
+| default   | service-nginx |          80 | http://172.17.0.2:30001 |
+|-----------|---------------|-------------|-------------------------|
+🏃  Starting tunnel for service service-nginx.
+|-----------|---------------|-------------|------------------------|
+| NAMESPACE |     NAME      | TARGET PORT |          URL           |
+|-----------|---------------|-------------|------------------------|
+| default   | service-nginx |             | http://127.0.0.1:51425 |
+|-----------|---------------|-------------|------------------------|
+🎉  Opening service default/service-nginx in default browser...
+❗  Because you are using a Docker driver on darwin, the terminal needs to be open to run it.
+```
+[!kkc-3](images/kkc-3.png)
+* 디플로이먼트와 파드가 존재하는 상황에서 서비스를 생성하는 예제
+```bash
+bash> kubectl expose deployment name-of-deployment --name name-of-service --port=8080 --target-port=8080 --type=NodePort --dry-run=client -o yaml | vi -
+vim> # 설정에서 NodePort: 30001 과 같이 설정하면 30001(NodePort) -> Service(8080:8080) -> Pod(8080) 연결시키는 서비스가 생성됩니다
 ```
 
+
+### 1-6. Practice Tests - Imperative Commands
+> Imperative 와 Declarative 명령의 차이는 네비게이션에 따라 목적지에 순차적으로 이동하는 방법과, 우버를 통해 목적지를 선택하는 것과 같은 차이입니다. 
+
+* Imperative Commands Style
+  - edit 명령을 통한 변경은 쿠버네티스에 변경을 직접 가하는 것이므로 로컬의 yaml 과 정합성이 맞지 않게 되므로, --force 를 통해 replace 해야할 수도 있습니다
+  - create 로 생성한 것은 yaml 기반으로 형상관리를 하고, replace 통해 수행하는 것이 적절합니다
+```bash
+# Create Objects
+bash> kubectl run --image:nginx nginx
+bash> kubectl create deployment --image=nginx nginx
+bash> kubectl expose deployment nginx --port=80
+
+# Update Objects
+bash> kubectl edit deployment nginx
+bash> kubectl scale deployment replicas=3
+bash> kubectl set image deployment nginx nginx=nginx:1.18
+bash> kubectl create -f nginx.yaml
+bash> kubectl replace -f nginx.yaml
+bash> kubectl delete -f nginx.yaml
+```
+* Declarative Style
+  - 항상 apply 명령을 통해서 createOrReplace 하고, yaml 기준으로 계속 apply 하게되면 오류나 충돌을 걱정하지 않고 이력도 관리되어 안전합니다
+```bash
+bash> kubectl apply -f nginx.yaml
+```
 
 
