@@ -25,11 +25,15 @@ bash> kubectl run nginx --image nginx
 ### 1-2. Practice Tests - ReplicaSets
 * 아래와 같이 selector:tier 의 값과 metadata:labels:tier 가 같아야만 합니다
   - replicaset 기동을 위한 yaml 파일 생성
+  - ReplicaSet 의 경우 Pod 에 대한 template 설정도 (metadata.labels) 해주어야 하고, Scheduling 을 위한 selector 설정도 (matchLabels) 해주어야 하기 때문에 조금 복잡해질 수 있습니다. 또한 자신의 metadata 설정도 (labels) 존재합니다
 ```yaml
 apiVersion: apps/v1
 kind: ReplicaSet
 metadata:
   name: replicaset-busybox
+  labels:
+    app: rs1
+    tier: frontend
 spec:
   replicas: 2
   selector:
