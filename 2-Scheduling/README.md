@@ -107,12 +107,12 @@ bash> kubectl explain pod --recursive | grep -A5 tolerations
 
 bash> cat bee.yaml
 ...
-	tolerations  <[]Object>
-		 - effect  <string>
-			 key  <string>
-			 operator  <string>
-			 tolerationSeconds  <integer>
-			 value  <string>
+  tolerations  <[]Object>
+     - effect  <string>
+       key  <string>
+       operator  <string>
+       tolerationSeconds  <integer>
+       value  <string>
 ...
 
 bash> kubectl apply -f bee.yaml
@@ -131,13 +131,13 @@ bash> kubectl taint nodes node01 spary=mortein/NoSchedule-
 apiVersion: v1
 kind: Pod
 metadata:
-	name: nginx-pod
+  name: nginx-pod
 spec:
-	containers:
-	- name: nginx-container
-		image: nginx
-	nodeSelector:
-		size: Large
+  containers:
+  - name: nginx-container
+    image: nginx
+  nodeSelector:
+    size: Large
 ```
 * 라벨을 설정합니다
 ```bash
@@ -149,47 +149,47 @@ bash> kubectl label node key=value
 * 관련 매뉴얼을 찾기 어려울 때에는 explain 명령을 활용합니다
 ```bash
 bash> kubectl explain --recursive pod | grep -i -A10 affinity
-      affinity	<Object>
-         nodeAffinity	<Object>
-            preferredDuringSchedulingIgnoredDuringExecution	<[]Object>
-               preference	<Object>
-                  matchExpressions	<[]Object>
-                     key	<string>
-                     operator	<string>
-                     values	<[]string>
-                  matchFields	<[]Object>
-                     key	<string>
-                     operator	<string>
-                     values	<[]string>
+      affinity  <Object>
+         nodeAffinity  <Object>
+            preferredDuringSchedulingIgnoredDuringExecution  <[]Object>
+               preference  <Object>
+                  matchExpressions  <[]Object>
+                     key  <string>
+                     operator  <string>
+                     values  <[]string>
+                  matchFields  <[]Object>
+                     key  <string>
+                     operator  <string>
+                     values  <[]string>
 ```
 * 노드 어피니티 설정
-	- DuringScheduling : 노드에 스케줄링 되기 전에 가져야하는 레이블 설정 (required)
-	- DuringExecution : 이미 실행 중인 노드에는 영향을 미치지 않음 (Ignoring)
+  - DuringScheduling : 노드에 스케줄링 되기 전에 가져야하는 레이블 설정 (required)
+  - DuringExecution : 이미 실행 중인 노드에는 영향을 미치지 않음 (Ignoring)
   - requiredDuringSchedulingIgnoredDuringExecution : 실행중인 작업은 건드리지 않고, 원하는 라벨이 존재하는 노드에만 배포합니다
-	- preferredDuringSchedulingIgnoredDuringExecution : ... 가능한 해당 노드에 배포합니다
-	- requiredDuringSchedulingRequredDuringExecution (Not Yet) : 원하는 노드가 다 차 있는 경우 제거 가능한 파드를 제거후, 배포합니다
+  - preferredDuringSchedulingIgnoredDuringExecution : ... 가능한 해당 노드에 배포합니다
+  - requiredDuringSchedulingRequredDuringExecution (Not Yet) : 원하는 노드가 다 차 있는 경우 제거 가능한 파드를 제거후, 배포합니다
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-	name: nginx-pod
+  name: nginx-pod
 spec:
-	containers:
-	- name: nginx-container
-		image: nginx
-	affinity:
-		nodeAffinity:
-			requiredDuringSchedulingIgnoredDuringExecution:
-				nodeSelectorTerms:
-					- matchExpressions:
-						- key: size
-							operator: In
-							values:
-							- Large
+  containers:
+  - name: nginx-container
+    image: nginx
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+            - key: size
+              operator: In
+              values:
+              - Large
 ```
-* apply 하는 경우 node 설정이 변경될 때에 정상 노드를 생성하고 난 이후, Terminating 하는 것처럼 보인다	
+* apply 하는 경우 node 설정이 변경될 때에 정상 노드를 생성하고 난 이후, Terminating 하는 것처럼 보인다  
   - operator 가 In 외에도 NotIn, Exists, DoesNotExist, Gt, Lt 등도 존재하므로 다양한 예제를 경험해 보는 것이 좋다
-	- [Assign-pod-node](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/) 페이지 참고
+  - [Assign-pod-node](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/) 페이지 참고
 
 
 
