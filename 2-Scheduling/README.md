@@ -237,19 +237,19 @@ spec:
 apiVersion: v1
 kind: DaemonSet
 metadata:
-	name: monitoring-daemonset
+  name: monitoring-daemonset
 spec:
-	selector:
-		matchLabels:
-			app: monitoring-agent
-	template:
-		metadata:
-			labels:
-				app: monitoring-agent
-		spec:
-			containers:
-			- name: monitoring-agent
-			  image: monitoring-agent
+  selector:
+    matchLabels:
+      app: monitoring-agent
+  template:
+    metadata:
+      labels:
+        app: monitoring-agent
+    spec:
+      containers:
+      - name: monitoring-agent
+        image: monitoring-agent
 ```
 ### 1-8. 정적파드
 > 어떠한 관련 서비스도 존재하지 않고 kubelet 만 존재한다고 할때, Kubelet 은 유일하게 수행 가능한 일이 파드를 생성하는 것이므로 /etc/kubernetes/manifest 파일을 통해서 파드를 생성 및 관리할 수 있습니다. 반면에 큐블랫이 생성한 파드가 클러스터의 일부라면, 큐브 API 서버에도 이와 동일한 읽기 전용 미러 객체 또한 생성됩니다. 즉 큐블렛이 API 서버에 관련 정보를 계속 전송하게 됩니다.
@@ -259,7 +259,7 @@ spec:
 
 * 정적 파드는 왜 필요한가요?
   - 초기에 Master 노드를 구성할 때에는 어떠한 의존성을 가진 서비스가 없어도 구성이 될 수 있어야 하기 때문입니다
-	- apiserver.yaml, etcd.yaml, controller-manager.yaml 즉, Control Plain 구성을 위해서는 반드시 정적 파드 구성이 가능해야만 합니
+  - apiserver.yaml, etcd.yaml, controller-manager.yaml 즉, Control Plain 구성을 위해서는 반드시 정적 파드 구성이 가능해야만 합니
 [kcc-8~9](images/kcc-8.png)
 [kcc-8~9](images/kcc-9.png)
 
