@@ -190,8 +190,85 @@ spec:
 * apply 하는 경우 node 설정이 변경될 때에 정상 노드를 생성하고 난 이후, Terminating 하는 것처럼 보인다  
   - operator 가 In 외에도 NotIn, Exists, DoesNotExist, Gt, Lt 등도 존재하므로 다양한 예제를 경험해 보는 것이 좋다
   - [Assign-pod-node](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/) 페이지 참고
+![kkc-3](images/kkc-3.png)
 
+### 1-6. 자원 요구사항 및 제한
+> CPU, Memory, Disk 기준으로 리소스를 요청 및 허용됩니다
 
+* 리소스 요청 resources.requests.{memory,cpu}
+  - [Kubernetes best practices: Resource requests and limits](https://cloud.google.com/blog/products/gcp/kubernetes-best-practices-resource-requests-and-limits) 참고
+  - CPU : 최소 0.1 까지 사용할 수 있으며 100m 밀리코어 단위로 사용할 수도 있습니다. 예를 들어 2개의 CPU 를 모두 온전히 사용하고 싶다면 2 또는 2000m을 하나의 CPU를 1/4만 사용하고 싶다면 0.25 혹은 250m 로 설정합니다 (1 AWS vCPU = 1 GCP Core = 1 Azure Core = 1 Hyperthread)
+  - Memory : 단위가 M(Megabyte),G(Gigabyte) 단위는 1,024가 아니라 1,000 을 말하므로, Gi(Gibibyte), Mi(Mebibyte) 표현을 사용하여 1024 단위로 사용하는 것이 정확합니다.
+* 리소스 제한 resources.limits.{memory,cpu}
+  - CPU 의 경우는 limit 를 넘어서는 사용이 불가능하지만, Memory 는 넘어설 수 있으며 그러한 경우 해당 파드가 종료될 수 있음에 주의해야 합니다
+* LimitRange 객체를 통해 기본 리소스 제한
+  - 특정 네임스페이스에 대하여 아래와 같이 CPU 및 Memory 에 대한 기본 제한을 둘 수 있습니다
+* [Configure Default Memory Requests and Limits for a Namespace](https://kubernetes.io/docs/tasks/administer-cluster/manage-resources/memory-default-namespace/)
+```yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: cpu-memory-limit-range
+spec:
+  limits:
+  - default:
+      cpu: 1
+      memory: 512Mi
+    defaultRequest:
+      cpu: 0.5
+      memory: 256Mi
+    type: Container
+```
+
+* 파드의 환경 정보의 수정은 아래의 몇 가지를 제외한 나머지는 불가능하기 때문에, 삭제 후 다시 생성하거나, 기존의 yaml 을 이용해서 다른 파드를 생성해야만 합니다
+```yaml
+- spec.containers[*].image
+- spec.initContainers[*].image
+- spec.activeDeadlineSeconds
+- spec.tolerations
+```
+
+### 1-7. 데몬셋
+> 모든 노드에 하나의 파드를 모두 배포될 수 있도록 구성하는 복제 구성을 말합니다. 예를 들어 모니터링 혹은 로그 등의 기능을 수행하기 위한 파드에 적합합니다
+
+* 큐브 프록시와 같은 파드가 좋은 예제이며, 아래와 같습니다.
+  - 다만, 직접 타이핑이 어렵기 때문에 가장 유사한 Deployment 로 생성하여 yaml 파일을 만들고, replicas 및 필요 없는 정보만 삭제하여 활용하면 됩니다
+```yaml
+apiVersion: v1
+kind: DaemonSet
+metadata:
+	name: monitoring-daemonset
+spec:
+	selector:
+		matchLabels:
+			app: monitoring-agent
+	template:
+		metadata:
+			labels:
+				app: monitoring-agent
+		spec:
+			containers:
+			- name: monitoring-agent
+			  image: monitoring-agent
+```
+### 1-8. 정적파드
+> 어떠한 관련 서비스도 존재하지 않고 kubelet 만 존재한다고 할때, Kubelet 은 유일하게 수행 가능한 일이 파드를 생성하는 것이므로 /etc/kubernetes/manifest 파일을 통해서 파드를 생성 및 관리할 수 있습니다. 반면에 큐블랫이 생성한 파드가 클러스터의 일부라면, 큐브 API 서버에도 이와 동일한 읽기 전용 미러 객체 또한 생성됩니다. 즉 큐블렛이 API 서버에 관련 정보를 계속 전송하게 됩니다.
+
+* 정적 파드의 내부 구조
+[kcc-6](images/kcc-6.png)
+
+* 정적 파드는 왜 필요한가요?
+  - 초기에 Master 노드를 구성할 때에는 어떠한 의존성을 가진 서비스가 없어도 구성이 될 수 있어야 하기 때문입니다
+	- apiserver.yaml, etcd.yaml, controller-manager.yaml 즉, Control Plain 구성을 위해서는 반드시 정적 파드 구성이 가능해야만 합니
+[kcc-8~9](images/kcc-8.png)
+[kcc-8~9](images/kcc-9.png)
+
+* 정적파드 구성과 데몬셋 구성으로 운영되는 파드의 종류
+  - 두 가지 모두 큐브 스켈줄러의 영향을 받지 않는 특징을 가지고 있습니다
+| 정적 파드 | 데몬셋 |
+| --- | --- |
+| 큐블렛에 의해 생성 | 큐브 API 서버를 통해 생성 |
+| 컨트롤 플레인 컴포넌트로써 배포 | 모니터링, 로깅 에이전트로써 배포 |
 
  
 
