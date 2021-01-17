@@ -259,7 +259,7 @@ spec:
 
 * 정적 파드는 왜 필요한가요?
   - 초기에 Master 노드를 구성할 때에는 어떠한 의존성을 가진 서비스가 없어도 구성이 될 수 있어야 하기 때문입니다
-  - apiserver.yaml, etcd.yaml, controller-manager.yaml 즉, Control Plain 구성을 위해서는 반드시 정적 파드 구성이 가능해야만 합니
+  - apiserver, etcd, controller-manager 및 scheduler. 즉, Control Plain 구성을 위해서는 반드시 정적 파드 구성이 가능해야만 합니
 [kcc-8~9](images/kcc-8.png)
 [kcc-8~9](images/kcc-9.png)
 
@@ -270,7 +270,50 @@ spec:
 | 큐블렛에 의해 생성 | 큐브 API 서버를 통해 생성 |
 | 컨트롤 플레인 컴포넌트로써 배포 | 모니터링, 로깅 에이전트로써 배포 |
 
- 
+* 큐블렛 실행 시에 config 지정이 가능하며 이 파일에 구성 정보에 정적 파드 생성정보가 저장되어 있습니다
+```bash
+bash> ps -ef | grep kubelet # --config=/var/lib/config.yaml
+bash> grep static /var/lib/config.yaml
+staticPodPath: /etc/kubernetes/manifests
+
+bash> ls /etc/kubernetes/manifests
+etcd.yaml kube-apiserver.yaml kube-controller-manager.yaml kube-scheduler.yaml
+
+bash> grep -i image kube-apiserver.yaml
+```
+
+* 정적 파드 생성 예제
+```bash
+bash> kubectl run static-busybox --image=busybox --command sleep 100 --restart=Never --dry-run=client -o yaml 
+```
+
+* 정적 파드의 생성 삭제 테스트
+  - 컨트롤러를 통해 조정할 수 없기 때문에 ssh 로 대상 노드에 접속하여 docker 명령 및 ps 명령으로 확인 및 관리할 수 있습니다
+	- config 통해 yaml 파일을 찾고 그 파일을 삭제하면 해당 노드의 파드를 삭제할 수 있습니다
+	- 또한 해당 yaml 파이을 수정하기만 하더라도 컨테이너 설정이 변경됩니다 (image 의 버전 등)
+```bash
+bash> ps -ef | grep kubelet | grep "\--config"
+```
+
+### 1-9. 멀티 스케줄러
+> 시스템 서비스를 통해 디폴트 설치를 통해 구성된 스케줄러 외에도 kubeadm 명령어를 통해 별도의 커스텀 스케줄러 실행이 가능하며, 파드 실행 시에 스케줄러 이름을 명시함으로써 다수의 스케줄러를 통해 관리가 가능합니다
+![kkc-10](images/kkc-10.png)
+![kkc-11](images/kkc-11.png)
+
+* [Configure Multiple Schedulers](https://kubernetes.io/docs/tasks/extend-kubernetes/configure-multiple-schedulers/)
+![kkc-12](images/kkc-12.png)
+
+* 실행 상황을 확인하기 위해 이벤트 또는 로그 등을 통해 확인할 수 있습니다.
+```bash
+bash> kubectl get events
+bash> kubectl logs <name-of-scheduler> --name-space=kube-system
+```
+
+* 스케줄러 관련 참고 링크
+  - [Advanced Scheduling in Kubernetes](https://kubernetes.io/blog/2017/03/advanced-scheduling-in-kubernetes/)
+	- [How does the Kubernetes scheduler work?](https://jvns.ca/blog/2017/07/27/how-does-the-kubernetes-scheduler-work/#:~:text=The%20Kubernetes%20scheduler%20is%20in,Basically%20it%20works%20like%20this%3A&text=The%20scheduler%20notices%20that%20the,a%20node%20to%20the%20pod)
+	- [How does Kubernetes' scheduler work?](https://stackoverflow.com/questions/28857993/how-does-kubernetes-scheduler-work)
+
 
 ## 2. Practice and Test
 
