@@ -25,8 +25,8 @@ bash> kubectl rollout status deployment/myapp-deployment
       kubectl rollout undo deployment/myapp-deployment
 ```
 * Docker Entrypoint & Commands
-![kcc-1](images/kkc-1.png)
-![kcc-2](images/kkc-2.png)
+![kkc-1](images/kkc-1.png)
+![kkc-2](images/kkc-2.png)
 * 도커 슬립 Dockerfile 을 생성합니다
 ```Dockerfile
 FROM ubuntu:18.04
@@ -58,6 +58,36 @@ spec:
 | Docker | ENTRYPOINT | CMD |
 | Kubernetes | COMMAND | ARGS |
 
+## 2. Environment Variables
+> 크게 세 가지(Plain Key, Value, ConfigMap, Secrets) 환경변수 유형이 존재합니다
+![kkc-3](images/kkc-3.png)
 
-## 
+* Create ConfigMaps w/ Imperative and Declarative Stsyle
+![kkc-4](images/kkc-4.png)
+![kkc-5](images/kkc-5.png)
+![kkc-6](images/kkc-6.png)
+
+* 기존 생성된 파드를 통해 yaml 획득 및 ConfigMaps 생성 및 확인
+```bash
+bash> kubectl get pods <name-of-pod> -o yaml | vi -
+bash> kubectl get configmaps
+bash> kubectl get cm
+
+bash> kubectl describe cm <name-of-configmaps>
+bash> kubectl create cm <name-of-cm> --from-literal=KEY1=VALUE1
+bash> kubectl explain pod --recursive | grep -i -A10 envFrom
+```
+* 파드 환경변수를 컨피그맵을 통해 가져오는 방법
+  - 아래의 name 이 configMapRef 와 같은 레벨에 있으면 안됩니다
+```yaml
+containers:
+- envFrom:
+  - configMapRef:
+      name: config-map-name
+```
+![kkc-7](images/kkc-7.png)
+
+## 3. Secrets
+> configmap 의 경우 모두 평문으로 저장되므로 비번 등은 다음의 secret 을 통해 저장되어야 합니다
+![kkc-8](images/kkc-8.png)
 
