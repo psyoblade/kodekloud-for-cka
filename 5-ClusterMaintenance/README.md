@@ -125,7 +125,15 @@ snapshot save /opt/snapshot-pre-boot.db
 master> export ETCDCTL_API=3 
 master> etcdctl snapshot restore /opt/snapshot-pre-boot.db --data-dir=/var/lib/etcd-from-backup
 ```
+* 백업을 복원한 이후에는 현재 기동된 설정이 정상적인지 확인이 필요합니다
+  - etcd 관련 path 정보가 data 경로는 백업 시에 명시한 /var/lib/etcd-from-backup 이고, 인증관련 경로는 /etc/kubernetes/pki/etcd 임을 확인합니다
+```bash
+bash> vi /etc/kubernetes/manifests/etcd.yaml
+```
 
 
-
+* 레퍼런스
+  - [Backing up an ETCD Cluster](https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/#backing-up-an-etcd-cluster)
+  - [Restoring ETCD Cluster](https://github.com/etcd-io/etcd/blob/master/Documentation/op-guide/recovery.md)
+  - [Disaster Recovery for your Kubernetes Clusters](https://www.youtube.com/watch?v=qRPNuT080Hk)
 
