@@ -103,6 +103,7 @@ bash> vi /etc/kubernetes/manifests/etcd.yaml
 
 
 ## 신규 관리자 인증서 추가
+* [Managing Resources](https://kubernetes.io/docs/concepts/cluster-administration/manage-deployment/)
 * openssl 명령을 통해 인증서를 생성합니다
 ```bash
 bash> openssl genrsa -out suhyuk.key 2048
@@ -147,7 +148,9 @@ spec:
 
 
 ## KubeConfig 실습
+* [Organizing Cluster Access Using kubeconfig Files](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/)
 ```bash
+bash> cat ~/.kube/config
 bash> curl https://me-kube-playground:6443/api/v1/pods \
 	--key admin.key \
 	--cert admin.crt \
@@ -204,8 +207,10 @@ users:
 bash> kubectl config view
 bash> kubectl config view --kubeconfig=suhyuk-kube-playground
 bash> kubectl config use-context prod-user@production
+bash> kubectl config --kubeconfig=/root/my-kube-config use-context research # 해당 설정 파일에 구성된 내용을 기준으로 컨텍스트를 변경
 bash> kubectl config -h
 ```
+* "$HOME/.kube/config" 에 존재하는 파일을 변경할 수 있습니다
 ```yaml
 apiVersion: v1
 kind: Config
@@ -215,3 +220,130 @@ clusters:
 		certificate-authority: /etc/kubernetes/pki/ca.crt
 		certificate-authority-data: `cat /etc/kubernetes/pki/ca.crt | base64`
 ```
+* 이용자 인증 정보 위치
+```bash
+bash> ls -al /etc/kubernetes/pki/users/*/*
+```
+
+
+## RBAC (Role Based Access Control) 실습
+* 각종 명령어 실습 
+  - 1. 현재 기동된 설정 확인하기
+  - 2. 현재 생성된 전체 롤 개수 확인하기
+  - 3. 특정 롤의 상세 정보 확인
+  - 4. 바인딩된 상세 정보 확인
+```bash
+bash> kubectl describe pod kube-apiserver-controlplane -n kube-system | grep authorization
+bash> kubectl get roles --all-namespaces --no-headers | wc -l
+bash> kubectl describe role kube-proxy -n kube-system
+bash> kubectl describe rolebindings kube-proxy -n kube-system
+```
+* 롤을 생성하기
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+	name: developer
+rules
+- apiGroups: [""]
+	resources: ["pods"]
+	verbs: ["list", "get", "create", "update", "delete"]
+- apiGroups: [""]
+	resources: ["ConfigMap"]
+	verbs: ["create"]
+```
+* 롤을 특정 이용자에 바인딩하기
+  - roleRef 값은 map 형태로 들어가야 하므로 arrya 형태인 - 가 들어가서는 안 된다
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+	name: devuser-developer-binding
+subjects:
+- kind: User
+	name: dev-user
+	apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+	name: developer
+	apiGroup: rbac.authorization.k8s.io
+```
+* 생성된 RBAC 정보를 확인합니다
+```bash
+bash> kubectl get roles
+bash> kubectl get rolebindings
+bash> kubectl describe role developer
+bash> kubectl describe rolebinding devuser-developer-binding
+```
+* 권한 여부 확인하기
+  - impersonate w/ --as <user-name>
+```yaml
+bash> kubectl auth can-i create deployments
+bash> kubectl auth can-i delete nodes 
+
+bash> kubectl auth can-i create deployments --as dev-user
+bash> kubectl auth can-i delete nodes --as dev-user
+
+bash> kubectl auth can-i create pods --as dev-user --namespace test
+```
+* 특정 파드의 이름에만 권한을 주는 경우
+  - red, blue, orange, white, black 5가지 파드 가운데 blue 와 orange 에만 권한을 주고 싶다면?
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+	name: developer
+rules
+- apiGroups: [""]
+	resources: ["pods"]
+	verbs: ["list", "create"]
+```
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+	name: dev-user-binding
+subjects:
+- kind: User
+	name: dev-user
+	apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+	name: developer
+	apiGroup: rbac.authorization.k8s.io
+```
+```yaml
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: blue
+  name: deploy-role
+rules:
+- apiGroups: ["apps", "extensions"]
+  resources: ["deployments"]
+  verbs: ["create"]
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: dev-user-deploy-binding
+  namespace: blue
+subjects:
+- kind: User
+  name: dev-user
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: deploy-role
+  apiGroup: rbac.authorization.k8s.io
+```
+
+## 클러스터 롤 및 클러스터 롤 바인딩
+```bash
+bash> kubectl api-resources --namespaced=true
+bash> kubectl api-resources --namespaced=false
+```
+![kkc-1](images/kkc-1.png)
+
