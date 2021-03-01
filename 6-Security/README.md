@@ -152,14 +152,14 @@ spec:
 ```bash
 bash> cat ~/.kube/config
 bash> curl https://me-kube-playground:6443/api/v1/pods \
-	--key admin.key \
-	--cert admin.crt \
-	--cacert ca.crt
+  --key admin.key \
+  --cert admin.crt \
+  --cacert ca.crt
 
 bash> kubectl get pods \
-	--server me-kube-playground:6443 \
+  --server me-kube-playground:6443 \
   --client-key admin.key \
-	--client-certificate admin.crt \
+  --client-certificate admin.crt \
   --certificate-authority ca.crt
 ```
 * 3개의 섹션으로 구성된 Config 파일을 생성합니다
@@ -169,19 +169,19 @@ apiVersion: v1
 kind: Config
 clusters:
 - name: suhyuk-kube-playground
-	cluster:
-		certificate-authority: ca.crt
-		server: https://suhyuk-kube-playground:6443
+  cluster:
+    certificate-authority: ca.crt
+    server: https://suhyuk-kube-playground:6443
 contexts:
 - name: suhyuk-kube-admin@suhyuk-kube-playground
-	context:
-		cluster: suhyuk-kube-playground
-		user: suhyuk-kube-admin
+  context:
+    cluster: suhyuk-kube-playground
+    user: suhyuk-kube-admin
 users:
 - name: suhyuk-kube-admin
   user:
-		client-certificate: admin.crt
-		client-key: admin.key
+    client-certificate: admin.crt
+    client-key: admin.key
 ```
   - 여러개의 클러스터에 대한 구성을 하며 current-context 를 통해 default context 를 설정합니다
 ```yaml
@@ -216,9 +216,9 @@ apiVersion: v1
 kind: Config
 clusters:
 - name: production
-	cluster:
-		certificate-authority: /etc/kubernetes/pki/ca.crt
-		certificate-authority-data: `cat /etc/kubernetes/pki/ca.crt | base64`
+  cluster:
+    certificate-authority: /etc/kubernetes/pki/ca.crt
+    certificate-authority-data: `cat /etc/kubernetes/pki/ca.crt | base64`
 ```
 * 이용자 인증 정보 위치
 ```bash
@@ -243,14 +243,14 @@ bash> kubectl describe rolebindings kube-proxy -n kube-system
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-	name: developer
+  name: developer
 rules
 - apiGroups: [""]
-	resources: ["pods"]
-	verbs: ["list", "get", "create", "update", "delete"]
+  resources: ["pods"]
+  verbs: ["list", "get", "create", "update", "delete"]
 - apiGroups: [""]
-	resources: ["ConfigMap"]
-	verbs: ["create"]
+  resources: ["ConfigMap"]
+  verbs: ["create"]
 ```
 * 롤을 특정 이용자에 바인딩하기
   - roleRef 값은 map 형태로 들어가야 하므로 arrya 형태인 - 가 들어가서는 안 된다
@@ -258,15 +258,15 @@ rules
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-	name: devuser-developer-binding
+  name: devuser-developer-binding
 subjects:
 - kind: User
-	name: dev-user
-	apiGroup: rbac.authorization.k8s.io
+  name: dev-user
+  apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: Role
-	name: developer
-	apiGroup: rbac.authorization.k8s.io
+  name: developer
+  apiGroup: rbac.authorization.k8s.io
 ```
 * 생성된 RBAC 정보를 확인합니다
 ```bash
@@ -292,25 +292,25 @@ bash> kubectl auth can-i create pods --as dev-user --namespace test
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-	name: developer
+  name: developer
 rules
 - apiGroups: [""]
-	resources: ["pods"]
-	verbs: ["list", "create"]
+  resources: ["pods"]
+  verbs: ["list", "create"]
 ```
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-	name: dev-user-binding
+  name: dev-user-binding
 subjects:
 - kind: User
-	name: dev-user
-	apiGroup: rbac.authorization.k8s.io
+  name: dev-user
+  apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: Role
-	name: developer
-	apiGroup: rbac.authorization.k8s.io
+  name: developer
+  apiGroup: rbac.authorization.k8s.io
 ```
 ```yaml
 ---
@@ -420,10 +420,10 @@ bash> docker run me.suhyuk.io/apps/internal-app
 * 도커 개인 레지스트리 등록을 위한 시크릿 생성
 ```bash
 bash> kubectl create secret docker-registry regcred \
-	--docker-server = me.suhyui.io \
-	--docker-username = username \
-	--docker-password = password \
-	--docker-email = username@me.suhyui.io
+  --docker-server = me.suhyui.io \
+  --docker-username = username \
+  --docker-password = password \
+  --docker-email = username@me.suhyui.io
 ```
 * 시크릿을 통한 이미지 기동
   - [Create a Pod that uses your Secret](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-pod-that-uses-your-secret)
@@ -434,7 +434,7 @@ bash> kubectl create secret docker-registry regcred \
       - image: myprivateregistry.com:5000/nginx:alpine
         imagePullPolicy: IfNotPresent
         name: nginx
-			imagePullSecrets:
+      imagePullSecrets:
       - name: private-reg-cred
 ...
 ```
@@ -452,16 +452,16 @@ bash> docker run --cap-add MAC_ADMIN ubuntu
 apiVersion: v1
 kind: Pod
 metadata:
-	name: pod-name
+  name: pod-name
 spec:
-	containers:
-	- name : ubuntu
-		image: ubuntu
-		command: ["sleep", "3600"]
-		securityContext:
-			runAsUser: 1000
-			capabilities:
-				add: ["MAC_ADMIN"]
+  containers:
+  - name : ubuntu
+    image: ubuntu
+    command: ["sleep", "3600"]
+    securityContext:
+      runAsUser: 1000
+      capabilities:
+        add: ["MAC_ADMIN"]
 ```
 * 현재 실행 중인 파드의 유저 확인
   - securityContext 는 변경되지 않으므로 삭제 후 다시 생성해야만 합니다
