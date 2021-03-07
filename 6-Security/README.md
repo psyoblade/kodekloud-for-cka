@@ -538,9 +538,109 @@ bash> kubectl exec -it ubuntu-sleeper -- date -s '19 APR 2012 11:14:00'
 ```
 
 ## 네트워크 정책
-* Ingress & Egress 는 컨테이너 수준에서 상대적인 방향을 나타내는 용어입니다
+> 특정 파드 혹은 컴포넌트를 네트워크 상에서 Ingress/Egress Traffice 을 Pod 의 Port 에 근거하여 격리시킬 수 있습니다
 
 ![kkc-2](images/kkc-2.png)
 ![kkc-3](images/kkc-3.png)
+* Ingress & Egress 는 컨테이너 수준에서 상대적인 방향을 나타내는 용어입니다
+  - WEB 서버 : Client -> Ingress:80 -> Web -> Egress:5000
+  - API 서버 : Web -> Ingress:5000 -> API -> Egress:3306
+  - DB 서버 : API -> Ingress:3306 -> DB
 
+![kkc-4](images/kkc-4.png)
+* 잉그레스 네트워크 설정
+  - api pod 로부터 오는 tcp 3306 포트에 대해서만 허용
+```yaml
+policyTypes:
+- Ingress
+ingress:
+- from:
+  - podSelector:
+    matchLabels:
+      name: api-pod
+  ports:
+  - protocol: TCP
+    port: 3306
+```
 
+* 네트워크 정책 생성 ([Network Policy](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
+  - 특정 파드에 들어오는(ingress) 트래픽을 podSelector를 통해 정의하고, 이 정책을 적용하는 파드도 podSelector 통해 정의합니다
+  - 이러한 정책은 모든 네임스페이스에 적용되므로, namespace 또한 selector 를 통해 정합니다
+  - 외에도 별도 백업을 위한 쿠버네티스 외부 장비에 대한 설정도 ipBlock 통해 가능합니다
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-policy
+spec:
+  podSelector:
+    matchLabels:
+      role: db
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - ipBlock:
+      cidr: 172.17.0.0/16
+      except:
+      - 172.17.6.0/24
+    - namespaceSelector:
+        matchLabels:
+          name: prod
+    - podSelector:
+      matchLabels:
+        name: api-pod
+    ports:
+    - protocol: TCP
+      port: 3306
+  egress:
+  - to:
+    - ipBlock:
+      cidr: 10.0.0.0/24
+    ports:
+    - protocol: TCP
+      port: 3307
+```
+* 참고 사항
+  - 네트워크 정책을 지원하는 솔루션 (Kube-router, Calico, Romana, Weave-net)
+  - 참고로 Flannel 은 네트워크 정책을 지원하지 않습니다
+
+* 네트워크 정책 관리
+```bash
+bash> kubectl get networkpolicy
+bash> kubectl get netpol
+bash> kubectl get pods -o wide -l name=payroll
+
+```
+* 이터널 노드를 기준으로 정책을 정하는 예제
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: internal-policy
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      role: internal
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+    - {}
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          name: mysql
+    ports:
+    - protocol: TCP
+      port: 3306
+  - to:
+    - podSelector:
+        matchLabels:
+          name: payroll
+    ports:
+    - protocol: TCP
+      port: 8080
+```
