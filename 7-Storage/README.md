@@ -165,5 +165,98 @@ spec:
         claimName: myclaim
 ```
 
+## 스토리지 클래스
+> 구글 클라우드에서 볼륨을 사용하기 위해서는 사전에 디스크를 추가해 주어야만 합니다.
+* Static Provisioning
+  - [gcloud compute disks create](https://cloud.google.com/sdk/gcloud/reference/compute/disks/create)
+  - PV, PVC 를 통한 연동 시에는 중복된 값들이 포함되어 있고 맞춰줘야하는 불편함이 있습니다
+```bash
+bash> gcloud compute disks create --size 1GB --region us-east1 pd-disk
+bash> cat pv-definition.yml
+apiVersion: v1
+kind: PersistentVolume
+metadta:
+	name: pv-vol1
+spec:
+	accessModes:
+		- ReadWriteOnce
+	capacity:
+		storage: 500Mi
+	gcePersistentDisk:
+		pdName: pd-isk
+		fsType: ex4
+```
+![kkc-8](images/kkc-8.png)
+* Dynamic Provisioning
+  - 구글 스토리지의 경우 PVC에만 관련 정보를 추가하면 되고 storgeClassName 만 명시하면 됩니다
+  - 다양한 클래스의 스토리지를 지정하기만 하면 그에 따른 저장소를 얻게 됩니다
+```yaml
+---
+apiVersion: stroage.k8s.io/v1
+kind: StorageClass
+metadata:
+	name: google-storage
+provisioner: kubernetesio/gce-pd
+parameters:
+	type: pd-standard [ pd-standard | pd-ssd ]
+	replication-type: none [ none | regional-pd ]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+	name: myclaim
+spec:
+	accessModes:
+		- ReadWriteOnce
+	storageClassName: google-storage
+	resources:
+		requests:
+			storage: 500Mi
+```
+![kkc-9](images/kkc-9.png)
 
+* 스토리지 클래스 가져오기
+  - 로컬 스토리지의 경우는 동적인 프로비저닝([Dynamic Provisioning](https://kubernetes.io/docs/concepts/storage/storage-classes/#local)을 지원하지 않습니다.
+```bash
+bash> kubectl get sc
+bash> cat pvc.yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: local-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  resources:
+    requests:
+      storage: 500Mi
+```
+> The Storage Class called local-storage makes use of VolumeBindingMode set to WaitForFirstConsumer. This will delay the binding and provisioning of a PersistentVolume until a Pod using the PersistentVolumeClaim is created.
 
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+	name: nginx
+spec:
+	containers:
+		- name: nginx
+			image: nginx:alpine
+			volumeMounts:
+			- mountPath: /var/www/html
+				name: local-pvc
+	volumes:
+		- name: local-pvc
+			persistentVolumeClaim:
+				claimName: local-pvc
+```
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+	name: delayed-volume-sc
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+```
