@@ -92,7 +92,7 @@ bash> route
 bash> netstat -plnt
 ```
 
-## DNS 
+### DNS 
 > 특정 시스템에 ip 를 통해 접근은 ip addr 과 route 를 통해 가능하지만, 호스트의 이름을 통해 접근을 위해서는 hosts 파일 혹은 DNS 등록이 필요합니다 
 
 * 호스트가 늘어날 수록 hosts 파일 수정은 번거롭고, 오류가 늘어날 확률이 많기 때문에 DNS 서버를 통해 Host 명을 Resolve 하기 위해 운영합니다
@@ -216,7 +216,7 @@ bash> docker run --network host nginx
 
 
 ## 4. Network CNI (Continaer Network Interface)
-> 네트워크 구성이 docker, rkt, mesos 등과 어떻게 동일하거나 다른지 비교하면서 학습합니다.
+> 쿠버네티스의 파드 수준에서의 네트워크 구성을 다룹니다. 네트워크 CNI 를 통해서 개별 컨테이너에 네트워크 인터페이스를 구성할 수 있으며, WeaveNet 등의 외부 플러그인을 통해 컨테이너에 IP 를 부여하고 관리하는 것을 학습합니다. 또한 네트워크 구성이 docker, rkt, mesos 등과 어떻게 동일하거나 다른지 비교합니다.
 ![kkc-10](images/kkc-10.png)
 
 * 각종 런타임은 CNI 표준을 지키는 다양한 네트워크 인터페이스를 사용할 수 있습니다. (weaveworks, flannel, cilium, NSX 등) 하지만 도커는 CNI 표준을 준수하고 있지 않으며, 현재는 CNM (Container Network Model)을 사용하고 있습니다.
@@ -257,5 +257,98 @@ bash> ip route show default
 bash> netstat -nplt | grep kube-scheduler
 ```
   - 여기서 왜 default network 가 외부 접속인가?
+
+* Weave Network 통해서 다른 노드에 패킷 전송 시에 encapsulation 된 패킷을 전송할 수 있습니다
+```bash
+bash> cat /etc/cni/net.d/10-weave.conflist 
+{
+    "cniVersion": "0.3.0",
+    "name": "weave",
+    "plugins": [
+        {
+            "name": "weave",
+            "type": "weave-net",
+            "hairpinMode": true
+        },
+        {
+            "type": "portmap",
+            "capabilities": {"portMappings": true},
+            "snat": true
+        }
+    ]
+}
+```
+* WeaveNet 설치 및 테스트
+  - [Install WeaveNet](https://www.weave.works/docs/net/latest/kubernetes/kube-addon/) Plugin
+```bash
+bash> kubectl get deployments.apps
+bash> kubectl get pods
+bash> kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+```
+* 네트워크 인터페이스의 할당 IP 확인
+```bash
+bash> ip link  # or ifconfig
+bash> ip addr show weave
+```
+* 특정 노드에 임의의 파드를 기동
+  - spec 항목에 nodeName: node03 과 같이 명시적인 노드명을 수정합니다
+```bash
+bash> kubectl run busybox --image=busybox --command sleep 1000 --dry-run=client -o yaml > pod.yaml
+bash> kubectl create -f pod.yaml
+bash> kubectl exec busybox -- ip link
+bash> kubectl exec busybox -- ip addr show eth0
+```
+
+## 5. Service Networking
+> 서비스 네트워크의 경우 특정 노드에만 한정되지 않고 생성 시에 모든 노드에서 해당 IP 와 이름으로 접근할 수 있습니다. 단, 서비스는 해당 클러스터 내에서만 접근이 가능한 별도의 IP 를 가지며 이를 통해 어디서든 접근할 수 있습니다. 반면 외부에서 접근 시에는 NodePort 를 활용하는데 이는 모든 노드에 특정 포트에 대한 감시를 통해서 해당 서비스를 접근할 수 있습니다
+
+![kkc-13](images/kkc-13.png)
+* 서비스는 특정 프로세스나 객체가 존재하는 것이 아니라, 가상의 객체입니다. 각 서비스가 가지고 있는 맵핑정보를 이어주는 역할을 kubelet -> kube-proxy -> service 를 통하여 연결할 수 있도록 하는 역할을 말합니다. 
+  - 아래의 그림과 같이 특정 외부에 노출된 IP(10.99.13.178)을 특정 서비스가 존재하는 IP(10.244.1.2)로 포워드 해주는 역할입니다
+![kkc-14](images/kkc-14.png)
+
+```bash
+bash> kubectl get pods -o wide
+bash> kubectl get service
+bash> iptables -L -t net | grep db-service
+```
+* 특정 노드의 네트워크 환경분석
+```bash
+bash> kubectl -n kube-system logs weave-net -c weave
+```
+
+## 6. DNS on Kubernetes
+> 같은 네임스페이스(default) 내에서 서비스 이름만으로 접근이 가능하지만, 다른 네임스페이스(apps)라면 어떻게 접근할 수 있을지 학습합니다.
+
+* 서비스이름(web-service) + 네임스페이스(apps) + 객체유형(svc) + 루트도메인(cluster.local) = http://web-service.apps.svc.cluster.local 와 같이 접근이 가능합니다
+![kkc-14](images/kkc-14.png)
+
+* 쿠버네티스가 개별 서비스들이 접근하는 방법들
+  - /etc/hosts 파일에 서비스 이름과 IP를 입력
+  - /etc/resolv.conf 파일에 nameserver 인 DNS 서버에 등록
+
+* 쿠버네티스에서는 내부적으로 CoreDNS 라는 서비스를 이용합니다
+  - CoreDNS 또한 하나의 파드로 등록되어 제공됩니다
+  - /etc/coredns/Corefile 을 통해서 관리됩니다
+  - /var/lib/kublet/config.yaml 파일을 통해서 쿠버네티스 DNS 서버에 접근할 수 있습니다.
+
+* 특정 서비스 접근 시에 다양한 형식으로 접근이 가능합니다
+  - 이는 /etc/resolv.conf 설정에서 search 키워드를 통해 설정됩니다
+  - 아래와 같이 suffix 로 붙여줄 수 있는 후보는 모두 추가되어 FQDN 으로 접근도 가능하지만, 호스트 명만으로는 불가능합니다
+```bash
+nameserver 10.0.0.1
+search default.svc.cluster.local svc.cluster.local cluster.local
+```
+
+* 파드가 아니라 개별 서비스를 확인하고 싶을 때
+  - 해당 배포의 설정을 확인하기 위해서는 deployments 를 보아야 한다
+  - /etc/coredns/Corefile 정보는 deployments 에서 mounts 정보를 확인할 수 있으며 config volume 즉 ConfigMap 을 통해 제공받는다
+```bash
+bash> kubectl -n kube-system get deployments 
+bash> kubectl -n kube-system get svc
+bash> kubectl -n kube-system describe deployments coredns
+bash> kubectl -n kube-system get configmap
+bash> kubectl -n kube-system describe configmap coredns
+```
 
 
